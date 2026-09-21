@@ -152,19 +152,29 @@ def load_scene_package(
         if units in {"m", "meter"}:
             units = "meters"
         col = manifest.get("collision", {})
-        mesh_rel = col.get("mesh_path")
+        mesh_rel = col.get("mesh_path") or col.get("path")
         if mesh_rel:
             collision_mesh = (root / mesh_rel).resolve()
             sibling = collision_mesh.with_suffix(".xml")
             if sibling.is_file():
                 collision_mjcf = sibling
+            elif collision_mesh.is_file() and collision_mesh.suffix.lower() in {".obj", ".stl"}:
+                collision_mjcf = _mjcf_for_mesh(collision_mesh)
         vis = manifest.get("visual", {})
         splat = vis.get("splat_path")
         if splat:
             visual_path = (root / splat).resolve()
+        # Prefer textured/proxy mesh path for discovery; points.ply ok as discovery only
+        proxy = vis.get("proxy_mesh_path") or vis.get("proxy_path") or vis.get("proxy_mesh")
+        if proxy and visual_path is None:
+            visual_path = (root / proxy).resolve()
 
     if collision_mjcf is None:
-        collision_mjcf = _DEFAULT_EMPTY_MJCF
+        # Last resort: any collision mesh under package, else empty room fixture
+        if collision_mesh is not None and collision_mesh.is_file():
+            collision_mjcf = _mjcf_for_mesh(collision_mesh)
+        else:
+            collision_mjcf = _DEFAULT_EMPTY_MJCF
 
     return ScenePackage(
         root=root,
@@ -189,6 +199,36 @@ def _inner_xml(path: Path, tag: str) -> str:
     ):
         parts.append(m.group(1).strip())
     return "\n".join(parts)
+
+
+def _mjcf_for_mesh(mesh_path: Path, out_dir: Path | None = None) -> Path:
+    """Write a tiny MJCF that loads a collision mesh (OBJ/STL) as a static geom."""
+    mesh_path = mesh_path.resolve()
+    dest = out_dir or (mesh_path.parent / ".physical_sim_build")
+    dest.mkdir(parents=True, exist_ok=True)
+    out = dest / f"{mesh_path.stem}_collision.xml"
+    # meshdir = parent of mesh so <mesh file="name.obj"/> resolves
+    rel = mesh_path.name
+    out.write_text(
+        f"""<?xml version="1.0" ?>
+<mujoco model="{mesh_path.stem}_collision">
+  <compiler angle="radian" meshdir="{mesh_path.parent.as_posix()}" autolimits="true"/>
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+  <asset>
+    <mesh name="collision_mesh" file="{rel}"/>
+  </asset>
+  <worldbody>
+    <light pos="0 0 4" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+    <geom name="collision_shell" type="mesh" mesh="collision_mesh"
+          rgba="0.7 0.7 0.75 0.35" contype="1" conaffinity="1"
+          friction="1 0.005 0.0001" condim="3"/>
+  </worldbody>
+</mujoco>
+""",
+        encoding="utf-8",
+    )
+    return out
+
 
 
 def resolve_mjcf(
@@ -247,9 +287,17 @@ def resolve_mjcf(
     robot_wb = _inner_xml(robot_src, "worldbody")
     robot_act = _inner_xml(robot_src, "actuator")
     robot_default = _inner_xml(robot_src, "default")
+    room_asset = _inner_xml(room_src, "asset")
+    robot_asset = _inner_xml(robot_src, "asset")
 
     if not room_wb:
         return scene_xml
+
+    # Prefer absolute meshdir of collision mesh / room MJCF so OBJ/STL resolve.
+    if scene.collision_mesh is not None and scene.collision_mesh.is_file():
+        meshdir = scene.collision_mesh.resolve().parent.as_posix()
+    else:
+        meshdir = room_src.resolve().parent.as_posix()
 
     dest_dir = out_dir or (scene.root / ".physical_sim_build")
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -260,15 +308,17 @@ def resolve_mjcf(
     actuator_block = (
         f"  <actuator>\n{robot_act}\n  </actuator>\n" if robot_act else ""
     )
+    asset_inner = "\n".join(x for x in (room_asset, robot_asset) if x)
+    asset_block = f"  <asset>\n{asset_inner}\n  </asset>\n" if asset_inner else ""
     wrapper.write_text(
         f"""<?xml version="1.0" ?>
 <mujoco model="physical_sim_composed">
-  <compiler angle="radian" meshdir="." autolimits="true"/>
+  <compiler angle="radian" meshdir="{meshdir}" autolimits="true"/>
   <option timestep="0.002" gravity="0 0 -9.81"/>
   <visual>
     <global offwidth="64" offheight="64"/>
   </visual>
-{default_block}  <worldbody>
+{default_block}{asset_block}  <worldbody>
 {room_wb}
 {robot_wb}
   </worldbody>
