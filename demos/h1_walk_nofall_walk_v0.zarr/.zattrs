@@ -1,0 +1,4 @@
+{
+    "format": "open_physical_sim.trajectory.v1",
+    "n_episodes": 5
+}
