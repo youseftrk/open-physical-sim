@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "open_physical_sim"
+version = "0.1.0"
+description = "Physical sim runtime for Open Real2Sim (MuJoCo v0 empty room + robot)."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Open Real2Sim" }]
+keywords = ["mujoco", "gymnasium", "real2sim", "robotics"]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = [
+  "gymnasium>=0.29",
+  "mujoco>=3.0",
+  "numpy>=1.24",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+zarr = ["zarr>=2.16,<3"]
+dev = ["pytest>=7.0"]
+
+[project.entry-points."gymnasium.envs"]
+"PhysicalSim/empty-v0" = "open_physical_sim.envs.empty:EmptyRoomEnv"
+"PhysicalSim/h1-hello-twin-v0" = "open_physical_sim.envs.h1_hello_twin:H1HelloTwinEnv"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+open_physical_sim = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

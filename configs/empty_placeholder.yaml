@@ -1,0 +1,33 @@
+# PhysicalSim/empty-v0 — minimal empty room + placeholder 2-link arm
+# No Unitree assets required.
+
+robot:
+  path: assets/robots/simple_arm/robot.xml
+  name: simple_arm
+
+scene:
+  path: assets/scenes/empty_room/scene.xml
+  # Env Commons package root also accepted (env.json / scene.json)
+
+env:
+  path: assets/scenes/empty_room/scene.xml
+
+domain_randomization:
+  enabled: false
+  qpos_noise: 0.0
+  # Future DR knobs left empty intentionally for v0
+
+dr: {}
+
+cameras:
+  keys:
+    - rgb
+    - depth
+  shape: [3, 64, 64]
+
+sim:
+  frame_skip: 10
+  timestep: 0.002
+
+episode:
+  max_steps: 1000

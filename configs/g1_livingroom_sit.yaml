@@ -1,0 +1,38 @@
+# Future: PhysicalSim/g1-livingroom-sit-v0 (NOT registered in v0)
+# Placeholder Unitree G1 path — replace with a licensed model before use.
+
+robot:
+  path: assets/robots/unitree_g1/g1.urdf
+  name: unitree_g1
+
+scene:
+  path: assets/scenes/empty_room/scene.xml
+  # Later: Env Commons living-room package with collision mesh from Reconstruct
+
+env:
+  path: assets/scenes/empty_room/scene.xml
+
+domain_randomization:
+  enabled: false
+
+dr: {}
+
+cameras:
+  keys:
+    - rgb
+    - depth
+  shape: [3, 64, 64]
+
+sim:
+  frame_skip: 10
+
+episode:
+  max_steps: 2000
+
+task:
+  name: livingroom_sit
+  status: stub
+
+notes: >
+  Stub config for G1 sit-in-living-room. Gym id not registered until empty-v0
+  is proven and a real G1 model + living-room collision package are available.

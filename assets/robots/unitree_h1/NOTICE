@@ -1,0 +1,11 @@
+Unitree H1 MJCF + STL assets vendored from Google DeepMind MuJoCo Menagerie
+(unitree_h1/), originally provided by HangZhou YuShu TECHNOLOGY CO.,LTD.
+("Unitree Robotics") under the BSD-3-Clause license in LICENSE.
+
+Source: https://github.com/google-deepmind/mujoco_menagerie/tree/main/unitree_h1
+Upstream model license: BSD-3-Clause (Unitree Robotics copyright notice retained).
+Menagerie packaging / derivation notes: see CHANGELOG.md and upstream README.
+
+Not affiliated with Unitree Robotics or Inverted Lambda / InvLambda.
+open-physical-sim packaging files (this NOTICE, local README.md, configs) are
+Apache-2.0 unless noted otherwise.

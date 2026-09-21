@@ -1,0 +1,38 @@
+# PhysicalSim/h1-hello-twin-v0
+# Real Unitree H1 MJCF from MuJoCo Menagerie (BSD-3-Clause). See
+# assets/robots/unitree_h1/LICENSE + NOTICE.
+# empty-v0 does not depend on this file (keeps simple_arm + empty_room).
+
+robot:
+  path: assets/robots/unitree_h1/h1.xml
+  name: unitree_h1
+
+# Self-contained menagerie scene (includes h1.xml + floor). Loader detects
+# same-package scene.xml + h1.xml and loads this path without re-composing.
+scene:
+  path: assets/robots/unitree_h1/scene.xml
+
+env:
+  path: assets/robots/unitree_h1/scene.xml
+
+domain_randomization:
+  enabled: false
+
+dr: {}
+
+cameras:
+  keys:
+    - rgb
+    - depth
+    - ego
+  shape: [3, 64, 64]
+
+sim:
+  frame_skip: 10
+
+episode:
+  max_steps: 1000
+
+notes: >
+  H1 model vendored from google-deepmind/mujoco_menagerie unitree_h1 (BSD-3-Clause).
+  Gym id PhysicalSim/h1-hello-twin-v0 is registered via H1HelloTwinEnv.
