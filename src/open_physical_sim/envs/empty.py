@@ -159,6 +159,45 @@ class EmptyRoomEnv(gym.Env):
             obs[name] = np.zeros(shape, dtype=np.float32)
         return obs
 
+    def _body_id(self, name: str) -> int | None:
+        import mujoco
+        bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
+        return None if bid < 0 else int(bid)
+
+    def _walk_nofall_state(self) -> dict[str, Any]:
+        """Upright / fallen diagnostics for humanoid walk-nofall."""
+        eval_cfg = self.config.get("eval") or {}
+        torso_name = str(eval_cfg.get("torso_body", "torso_link"))
+        pelvis_name = str(eval_cfg.get("pelvis_body", "pelvis"))
+        min_z = float(eval_cfg.get("min_torso_z", 0.7))
+        max_tilt_deg = float(eval_cfg.get("max_tilt_deg", 45.0))
+        tid = self._body_id(torso_name) or self._body_id(pelvis_name)
+        if tid is None:
+            # fallback: free-joint root height if present
+            z = float(self.data.qpos[2]) if self.model.nq >= 3 else 0.0
+            upright = z >= min_z
+            return {"torso_z": z, "tilt_deg": 0.0, "fallen": not upright, "upright": upright}
+        xpos = self.data.xpos[tid]
+        xmat = self.data.xmat[tid].reshape(3, 3)
+        # body +Z in world ≈ third column of xmat
+        up = xmat[:, 2]
+        import numpy as np
+        tilt = float(np.degrees(np.arccos(np.clip(up[2], -1.0, 1.0))))
+        z = float(xpos[2])
+        fallen = (z < min_z) or (tilt > max_tilt_deg)
+        return {"torso_z": z, "tilt_deg": tilt, "fallen": fallen, "upright": not fallen}
+
+    def _compute_success(self, *, truncated: bool, terminated: bool) -> bool:
+        eval_cfg = self.config.get("eval") or {}
+        task = str(eval_cfg.get("task", "")).lower()
+        if task in {"walk_nofall", "walk-nofall", "nofall"}:
+            # Success = survived full episode upright (truncated without fall terminate)
+            return bool(truncated and not terminated)
+        if bool(eval_cfg.get("success_on_truncate", False)):
+            return bool(truncated)
+        return False
+
+
     def reset(
         self,
         *,
@@ -199,11 +238,19 @@ class EmptyRoomEnv(gym.Env):
         reward = 0.0
         terminated = False
         truncated = self._step_count >= self.max_episode_steps
-        # Task success flag for BC/eval writers. v0 envs have no goal yet → False.
-        # Optional config: success_on_truncate: true for smoke harnesses.
-        success_cfg = bool((self.config.get("eval") or {}).get("success_on_truncate", False))
-        success = bool(truncated and success_cfg)
+        eval_cfg = self.config.get("eval") or {}
+        task = str(eval_cfg.get("task", "")).lower()
+        walk_info: dict[str, Any] = {}
+        if task in {"walk_nofall", "walk-nofall", "nofall"}:
+            walk_info = self._walk_nofall_state()
+            if walk_info["fallen"]:
+                terminated = True
+                reward = float(eval_cfg.get("fall_reward", -1.0))
+            else:
+                reward = float(eval_cfg.get("alive_reward", 0.01))
+        success = self._compute_success(truncated=truncated, terminated=terminated)
         info: dict[str, Any] = {"step": self._step_count, "success": success}
+        info.update(walk_info)
         return obs, reward, terminated, truncated, info
 
     def render(self) -> Optional[np.ndarray]:

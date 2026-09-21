@@ -36,3 +36,13 @@ episode:
 notes: >
   H1 model vendored from google-deepmind/mujoco_menagerie unitree_h1 (BSD-3-Clause).
   Gym id PhysicalSim/h1-hello-twin-v0 is registered via H1HelloTwinEnv.
+
+eval:
+  task: walk_nofall
+  torso_body: torso_link
+  pelvis_body: pelvis
+  min_torso_z: 0.7
+  max_tilt_deg: 45.0
+  alive_reward: 0.01
+  fall_reward: -1.0
+  # success = truncated without fall (survived episode upright)
