@@ -114,7 +114,7 @@ class TrajectoryWriter:
                     self._buf["info"].setdefault(k, []).append(
                         v.item() if isinstance(v, np.generic) else v
                     )
-        if success is not None:
+        if success is not None and "success" not in (info or {}):
             self._buf["info"].setdefault("success", []).append(bool(success))
 
         if terminated or truncated:
