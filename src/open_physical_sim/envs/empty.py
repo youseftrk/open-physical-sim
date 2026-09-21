@@ -180,6 +180,7 @@ class EmptyRoomEnv(gym.Env):
             "scene_source": self.scene.source,
             "mjcf": str(self.scene.collision_mjcf),
             "units": self.scene.units,
+            "success": False,
         }
         return self._get_obs(), info
 
@@ -198,7 +199,11 @@ class EmptyRoomEnv(gym.Env):
         reward = 0.0
         terminated = False
         truncated = self._step_count >= self.max_episode_steps
-        info: dict[str, Any] = {"step": self._step_count}
+        # Task success flag for BC/eval writers. v0 envs have no goal yet → False.
+        # Optional config: success_on_truncate: true for smoke harnesses.
+        success_cfg = bool((self.config.get("eval") or {}).get("success_on_truncate", False))
+        success = bool(truncated and success_cfg)
+        info: dict[str, Any] = {"step": self._step_count, "success": success}
         return obs, reward, terminated, truncated, info
 
     def render(self) -> Optional[np.ndarray]:

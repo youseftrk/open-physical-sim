@@ -48,10 +48,29 @@ def denormalize_action(action_norm: Array, low: Array, high: Array) -> Array:
 
 
 class ActionScaler:
-    """Stateful helper bound to an env's action box."""
+    """Stateful helper bound to an env's action box (or saved meta)."""
 
-    def __init__(self, env: Any) -> None:
-        self.low, self.high = ctrl_range_from_env(env)
+    def __init__(
+        self,
+        env: Any | None = None,
+        *,
+        low: Array | None = None,
+        high: Array | None = None,
+    ) -> None:
+        if env is not None:
+            self.low, self.high = ctrl_range_from_env(env)
+        elif low is not None and high is not None:
+            self.low = np.asarray(low, dtype=np.float32).reshape(-1)
+            self.high = np.asarray(high, dtype=np.float32).reshape(-1)
+        else:
+            raise TypeError("ActionScaler requires env=... or low=... and high=...")
+
+    @classmethod
+    def from_meta(cls, meta: dict[str, Any]) -> "ActionScaler":
+        """Rebuild from ``scaler.meta()`` / saved JSON (eval reload)."""
+        if "low" not in meta or "high" not in meta:
+            raise KeyError("meta must contain 'low' and 'high'")
+        return cls(low=meta["low"], high=meta["high"])
 
     def normalize(self, action: Array) -> Array:
         return normalize_action(action, self.low, self.high)
