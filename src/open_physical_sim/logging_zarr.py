@@ -89,6 +89,7 @@ class TrajectoryWriter:
         truncated: bool | None = None,
         info: Mapping[str, Any] | None = None,
         timestamp: float | None = None,
+        success: bool | None = None,
     ) -> None:
         if not self.enabled or self._root is None:
             return
@@ -113,6 +114,8 @@ class TrajectoryWriter:
                     self._buf["info"].setdefault(k, []).append(
                         v.item() if isinstance(v, np.generic) else v
                     )
+        if success is not None:
+            self._buf["info"].setdefault("success", []).append(bool(success))
 
         if terminated or truncated:
             self.end_episode()
@@ -145,10 +148,13 @@ class TrajectoryWriter:
         obs_grp = ep.require_group("obs")
         for k, series in self._buf["obs"].items():
             obs_grp.array(k, np.stack(series), overwrite=True)
-        if self._buf["info"]:
-            info_grp = ep.require_group("info")
-            for k, series in self._buf["info"].items():
-                info_grp.array(k, np.asarray(series), overwrite=True)
+        info_grp = ep.require_group("info")
+        for k, series in self._buf["info"].items():
+            info_grp.array(k, np.asarray(series), overwrite=True)
+        # Canonical eval flag — always present (T,) bool. Default False if caller omitted.
+        if "success" not in self._buf["info"]:
+            T = len(actions)
+            info_grp.array("success", np.zeros(T, dtype=bool), overwrite=True)
 
         n_eps = int(self._root.attrs.get("n_episodes", 0)) + 1
         self._root.attrs["n_episodes"] = n_eps

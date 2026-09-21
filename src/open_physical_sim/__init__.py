@@ -39,4 +39,13 @@ def register_envs() -> None:
 # Import-side registration so `import open_physical_sim` is enough.
 register_envs()
 
-__all__ = ["__version__", "register_envs"]
+from open_physical_sim.action_scale import ActionScaler, normalize_action, denormalize_action
+
+__all__ = [
+    "__version__",
+    "register_envs",
+    "ActionScaler",
+    "normalize_action",
+    "denormalize_action",
+]
+
