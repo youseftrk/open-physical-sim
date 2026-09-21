@@ -205,7 +205,14 @@ class EmptyRoomEnv(gym.Env):
         options: dict[str, Any] | None = None,
     ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
         super().reset(seed=seed)
-        mujoco.mj_resetData(self.model, self.data)
+        # Prefer Menagerie/home keyframe when present so demos and gym reset match.
+        reset_cfg = (self.config.get("reset") or {})
+        use_key = bool(reset_cfg.get("keyframe_home", True)) and int(self.model.nkey) > 0
+        if use_key:
+            key_id = int(reset_cfg.get("keyframe_id", 0))
+            mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
+        else:
+            mujoco.mj_resetData(self.model, self.data)
         # Small random proprio nudge for diversity (disabled if DR empty).
         dr = self.config.get("domain_randomization") or self.config.get("dr") or {}
         if dr.get("enabled") and self.np_random is not None:

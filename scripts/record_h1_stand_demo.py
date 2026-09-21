@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Record H1 upright-stand demos via the Gym API (walk_nofall).
 
-Must match ``PhysicalSim/h1-hello-twin-v0``: ``sim.frame_skip: 10`` and the
-same ``env.step`` physics. PD-tracks Menagerie ``home``; episode horizon
-defaults to 40 so ``info["success"]`` is True on upright truncate.
+Matches ``PhysicalSim/h1-hello-twin-v0`` (``sim.frame_skip: 10``). Logs
+**pre-step** observations for closed-loop BC. Relies on env reset keyframe-home.
 """
 from __future__ import annotations
 
@@ -12,7 +11,6 @@ import shutil
 from pathlib import Path
 
 import gymnasium as gym
-import mujoco
 import numpy as np
 
 import open_physical_sim  # noqa: F401
@@ -37,7 +35,7 @@ def _pd(env: gym.Env, q_des: np.ndarray, kp: float, kd: float) -> np.ndarray:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--steps", type=int, default=40, help="gym steps (= episode max)")
+    ap.add_argument("--steps", type=int, default=40)
     ap.add_argument("--episodes", type=int, default=5)
     ap.add_argument("--kp", type=float, default=400.0)
     ap.add_argument("--kd", type=float, default=10.0)
@@ -49,13 +47,12 @@ def main() -> None:
     args = ap.parse_args()
 
     env = gym.make("PhysicalSim/h1-hello-twin-v0")
-    # Match Policy Eng eval horizon so truncate ⇒ success under walk_nofall.
     env.unwrapped.max_episode_steps = int(args.steps)
     m = env.unwrapped.model
     assert m.nkey >= 1, "expected home keyframe"
     q_home = np.array(m.key_qpos[0], dtype=np.float64)
     fs = int(getattr(env.unwrapped, "_frame_skip", 10))
-    print(f"recording via gym: frame_skip={fs} horizon={args.steps} kp={args.kp}")
+    print(f"gym record: frame_skip={fs} horizon={args.steps} pre-step obs + keyframe reset")
 
     if args.out.exists():
         shutil.rmtree(args.out)
@@ -63,20 +60,16 @@ def main() -> None:
 
     successes = 0
     for ep in range(args.episodes):
-        obs, info = env.reset()
-        mujoco.mj_resetDataKeyframe(m, env.unwrapped.data, 0)
-        mujoco.mj_forward(m, env.unwrapped.data)
-        # Refresh obs after keyframe snap
-        if hasattr(env.unwrapped, "_get_obs"):
-            obs = env.unwrapped._get_obs()
-
+        obs, info = env.reset()  # env snaps to home keyframe
         writer.start_episode(f"stand_{ep:02d}")
         last = info
         for t in range(args.steps):
             action = _pd(env, q_home, args.kp, args.kd)
+            # Log observation *before* the transition (closed-loop BC).
+            pre_obs = {k: np.asarray(v).copy() for k, v in obs.items()}
             obs, reward, terminated, truncated, last = env.step(action)
             writer.append(
-                obs=obs,
+                obs=pre_obs,
                 action=action,
                 reward=float(reward),
                 terminated=bool(terminated),
@@ -90,7 +83,7 @@ def main() -> None:
         successes += int(ok)
         print(
             f"ep={ep} success={ok} fallen={last.get('fallen')} "
-            f"z={last.get('torso_z')} steps={last.get('step')} trunc={truncated}"
+            f"z={last.get('torso_z')} steps={last.get('step')}"
         )
 
     writer.close()

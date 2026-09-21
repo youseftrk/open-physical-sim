@@ -46,3 +46,7 @@ eval:
   alive_reward: 0.01
   fall_reward: -1.0
   # success = truncated without fall (survived episode upright)
+
+reset:
+  keyframe_home: true
+  keyframe_id: 0
