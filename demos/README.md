@@ -2,13 +2,15 @@
 
 ## `h1_walk_nofall_stand_v0.zarr`
 
-Scripted Unitree H1 **upright stand** demos for BC against
+Gym-faithful Unitree H1 **upright stand** demos for BC on
 `PhysicalSim/h1-hello-twin-v0` + `eval.task: walk_nofall`.
 
-- Format: `open_physical_sim.trajectory.v1` (episodic Zarr)
+- Recorded via `gym.make(...).step` with **`sim.frame_skip: 10`**
+- Horizon **40** gym steps (⇒ `info["success"]=True` on upright truncate)
 - Generator: `scripts/record_h1_stand_demo.py`
-- Success: survive horizon upright (no fall) → `info/success`
 
 ```bash
-.venv/bin/python scripts/record_h1_stand_demo.py --steps 300 --episodes 5
+.venv/bin/python scripts/record_h1_stand_demo.py --steps 40 --episodes 5
 ```
+
+Open-loop replay of this zarr into the same gym env must stay upright.

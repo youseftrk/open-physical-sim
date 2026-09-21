@@ -1,9 +1,9 @@
 {
     "chunks": [
-        75,
+        20,
         2,
         32,
-        32
+        64
     ],
     "compressor": {
         "blocksize": 0,
@@ -17,7 +17,7 @@
     "filters": null,
     "order": "C",
     "shape": [
-        300,
+        40,
         3,
         64,
         64
